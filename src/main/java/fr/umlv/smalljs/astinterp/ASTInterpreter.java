@@ -68,40 +68,75 @@ public final class ASTInterpreter {
     return switch (expression) {
       case Block(List<Expr> exprs, int lineNumber) -> {
         if (true) {
-          throw new UnsupportedOperationException("TODO Block");
+          for (var expr: exprs) {
+              visit(expr, env);
+          }
         }
         // TODO loop over all instructions
         yield UNDEFINED;
       }
       case Literal(Object value, int lineNumber) -> {
-        throw new UnsupportedOperationException("TODO Literal");
+        yield value;
       }
       case Call(Expr qualifier, List<Expr> args, int lineNumber) -> {
-        throw new UnsupportedOperationException("TODO Call");
+          var maybeFunction = visit(qualifier, env);
+          if (!(maybeFunction instanceof  JSObject function)) {
+              throw new Failure("Not a function: " + maybeFunction + " at line " + lineNumber);
+          }
+          var arguments = args.stream()
+                  .map(arg -> visit(arg, env))
+                  .toArray();
+          yield function.invoke(maybeFunction, arguments);
       }
       case Identifier(String name, int lineNumber) -> {
-        throw new UnsupportedOperationException("TODO Identifier");
+        var value = env.lookupOrDefault(name, UNDEFINED);
+        if (value == null) {
+            throw new Failure("No declaration of " + name + " at line " + lineNumber);
+        }
+        yield value;
       }
       case VarAssignment(String name, Expr expr, boolean declaration, int lineNumber) -> {
-        throw new UnsupportedOperationException("TODO VarAssignment");
+        var value = visit(expr, env);
+        env.register(name, value);
+        yield value;
       }
       case Fun(String name, List<String> parameters, boolean toplevel, Block body, int lineNumber) -> {
-				throw new UnsupportedOperationException("TODO Fun");
-        //Object.Invoker invoker = new Object.Invoke() {
-        //  @Override
-        //  public Object invoke(Object receiver, Object... args) {
-        //    // check the arguments length
-        //    // create a new environment
-        //    // add this and all the parameters
-        //    // execute the body
-        //  }
-        //};
-        // create the JS function with the invoker
-        // register it into the global env if it's a toplevel
-        // yield the function
+          JSObject.Invoker invoker = new JSObject.Invoker() {
+              @Override
+              public Object invoke(Object receiver, Object... args) {
+                  if (parameters.size() != args.length) {
+                      throw new Failure("Wrong number of arguments for " + name);
+                  }
+
+                  var newEnv = JSObject.newEnv(env);
+
+                  newEnv.register("this", receiver);
+
+                  for (var i = 0; i < parameters.size(); i++) {
+                      newEnv.register(parameters.get(i), args[i]);
+                  }
+
+                  try {
+                      execute(body, newEnv);
+                  } catch (ReturnError err) {
+                      return err.getValue();
+                  }
+
+                  return UNDEFINED;
+              }
+          };
+
+          var function = JSObject.newFunction(name, invoker);
+
+          if (toplevel) {
+              env.register(name, function);
+          }
+
+          yield function;
       }
       case Return(Expr expr, int lineNumber) -> {
-				throw new UnsupportedOperationException("TODO Return");
+            var value = visit(expr, env);
+			throw new ReturnError(value);
       }
       case If(Expr condition, Block trueBlock, Block falseBlock, int lineNumber) -> {
 				throw new UnsupportedOperationException("TODO If");
