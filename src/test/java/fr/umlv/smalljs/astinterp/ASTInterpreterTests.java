@@ -123,7 +123,7 @@ public class ASTInterpreterTests {
     public void printSeveralAssignments() {
       assertEquals("42\n42\n", execute("""
               var a = 42;
-              var b = a;
+             fr.umlv.smalljs.grammar.antlr.ECMAScriptParser var b = a;
               print(a);
               print(b);
               """));

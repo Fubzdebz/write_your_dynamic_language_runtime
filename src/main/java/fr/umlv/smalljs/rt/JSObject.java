@@ -15,7 +15,11 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 
 public final class JSObject {
-  private static final class Layout {
+    public Object lookup(String name) {
+        return null;
+    }
+
+    private static final class Layout {
     private final LinkedHashMap<String, Integer> slotMap;
     private final HashMap<String, Layout> forwardMap;
 
