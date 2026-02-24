@@ -168,7 +168,20 @@ public final class ByteCodeRewriter {
                 mv.visitLdcInsn(new ConstantDynamic("undefined", "Ljava/lang/Object;", BSM_UNDEFINED));
             }
             case Call(Expr qualifier, List<Expr> args, int lineNumber) -> {
-                //throw new UnsupportedOperationException("TODO Call");
+                // is this a call using the global env ?
+                if (qualifier instanceof Identifier local &&
+                        env.lookupOrDefault(local.name(), null) == null) {
+                    // load "this"
+                    mv.visitLdcInsn(new ConstantDynamic("undefined", "Ljava/lang/Object;", BSM_UNDEFINED));
+                    // for each argument, visit it
+                    for(var arg : args) {
+                        visit(arg, env, mv, dictionary);
+                    }
+                    // generate an invokedynamic
+                    var desc = "(" + "Ljava/lang/Object;".repeat(2 + args.size()) + ")Ljava/lang/Object;";//MethodType.genericMethodType(1 + args.size()).toMethodDescriptorString();
+                    mv.visitInvokeDynamicInsn("globalcall", desc, BSM_GLOBALCALL, local.name());
+                    return;
+                }
                 // visit the qualifier
                 visit(qualifier, env, mv, dictionary);
                 // load "this"
@@ -226,7 +239,7 @@ public final class ByteCodeRewriter {
             }
             case Return(Expr expr, int lineNumber) -> {
                 // visit the return expression
-                visit(expression, env, mv, dictionary);
+                visit(expr, env, mv, dictionary);
                 // generate the bytecode
                 mv.visitInsn(ARETURN);
             }
